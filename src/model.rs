@@ -421,9 +421,9 @@ mod tests {
         var a int = 2;\n\
         var b int = 3;\n\
         var minval int;\n\
-        if a < b {\n
+        if a < b {\n\
             minval = a;\n\
-        } else {\n
+        } else {\n\
             minval = b;\n\
         }";
 
