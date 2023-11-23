@@ -33,14 +33,16 @@ pub enum Expression {
     BinOp{lhs: Box<Expression>, op: Op, rhs: Box<Expression>},
     RelOp{lhs: Box<Expression>, op: RelOp, rhs:Box<Expression>},
     Grouping(Box<Expression>),
-    Assignment{lhs: String, rhs: Box<Expression>}
+    Assignment{lhs: String, rhs: Box<Expression>},
+    Block{body: Vec<Statement>},
 }
 
 pub enum Statement {
     PrintStatement(Expression),
     Expression(Expression),
     ConstDeclaration{name: String, value: Option<Expression> },
-    VarDeclaration{name: String, data_type: Option<DataType>, value: Option<Expression> }
+    VarDeclaration{name: String, data_type: Option<DataType>, value: Option<Expression> },
+    If{condition: Box<Expression>, body: Vec<Statement>, else_body: Option<Vec<Statement>>},
 }
 
 pub enum Op {
@@ -115,6 +117,14 @@ pub fn expression_to_source(node: &Expression) -> String {
             expression_to_source(rhs)
         ),
         Expression::Char(_) => todo!(),
+        Expression::Block { body } => {
+            let mut source: String = String::new();
+            for line in body {
+                let s = format!("{}\n", statement_to_source(line));
+                source.push_str(&s)
+            }
+            return source;
+        },
     }
 }
 
@@ -140,6 +150,28 @@ pub fn statement_to_source(node: &Statement) -> String {
                 (Some(data_type), Some(value)) => format!("var {} {} = {};", name, data_type, expression_to_source(value)),
             }
 
+        },
+        Statement::If { condition, body, else_body } => {
+            let mut source = format!("if {} {{\n", expression_to_source(condition));
+            for line in body {
+                let s = format!("{}\n", statement_to_source(line));
+                source.push_str(&s)
+            }
+            source.push_str("}");
+
+            match else_body {
+                Some(body) => {
+                    let mut else_source: String = String::from(" else {\n");
+                    for line in body {
+                        let s = format!("{}\n", statement_to_source(line));
+                        else_source.push_str(&s)
+                    }
+                    else_source.push_str("}");
+                    source.push_str(&else_source);
+                },
+                None => (),
+            };
+            return source;
         },
     }
 }
@@ -249,7 +281,6 @@ mod tests {
         let s = program_to_source(&program);
         assert_eq!(program.source, s);    
         println!("\n--Program1--\n{}\n", s);
-    
     }
 
     #[test]
@@ -311,8 +342,6 @@ mod tests {
         let s = program_to_source(&program);
         assert_eq!(program.source, s);    
         println!("\n--Program2--\n{}\n", s);
-
-
     }
 
     #[test]
@@ -384,8 +413,72 @@ mod tests {
         let s = program_to_source(&program);
         assert_eq!(program.source, s);    
         println!("\n--Program3--\n{}\n", s);
-
-
     }
 
+    #[test]
+    fn program4() {
+        let source = "\
+        var a int = 2;\n\
+        var b int = 3;\n\
+        var minval int;\n\
+        if a < b {\n
+            minval = a;\n\
+        } else {\n
+            minval = b;\n\
+        }";
+
+        let program = Program{ 
+            source: source.to_string(), 
+            model: vec![
+                Statement::VarDeclaration {
+                    name: "a".to_string(), 
+                    data_type: Some(DataType::Integer), 
+                    value: Some(Expression::Integer(2))
+                },
+                Statement::VarDeclaration {
+                    name: "b".to_string(), 
+                    data_type: Some(DataType::Integer), 
+                    value: Some(Expression::Integer(3))
+                },
+                Statement::VarDeclaration {
+                    name: "minval".to_string(), 
+                    data_type: Some(DataType::Integer), 
+                    value: None
+                },
+                Statement::If {
+                    condition: Box::new(
+                        Expression::RelOp {
+                            lhs: Box::new(Expression::Identifier("a".to_string())), 
+                            op: RelOp::LT, 
+                            rhs: Box::new(Expression::Identifier("b".to_string())) 
+                        }
+                    ),
+                    body: vec![
+                        Statement::Expression(
+                            Expression::Assignment {
+                                lhs: "minval".to_string(), 
+                                rhs: Box::new(Expression::Identifier("a".to_string())) 
+                            }
+                        )
+                    ],
+                    else_body: Some(
+                        vec![
+                            Statement::Expression(
+                                Expression::Assignment {
+                                    lhs: "minval".to_string(), 
+                                    rhs: Box::new(Expression::Identifier("b".to_string())) 
+                                }
+                            )
+                        ]
+                    ) 
+                }
+
+            ],
+            has_errors: false 
+        };
+
+        let s = program_to_source(&program);
+        assert_eq!(program.source, s);
+        println!("\n--Program4--\n{}\n", s);
+    }
 }
