@@ -1,3 +1,4 @@
+mod model;
 mod program;
 
 fn main() {
