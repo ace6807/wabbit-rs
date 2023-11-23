@@ -1,0 +1,8 @@
+const n = 10;
+var x int = 1;
+var fact int = 1;
+while x < n {
+    fact = fact * x;
+    x = x + 1;
+    print fact;
+}

@@ -1,0 +1,6 @@
+const pi = 3.14159;
+const tau = 2.0 * pi;
+var radius = 4.0;
+var perimeter float;
+perimeter = tau * radius;
+print perimeter;

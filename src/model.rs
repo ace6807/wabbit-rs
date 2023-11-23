@@ -42,7 +42,8 @@ pub enum Statement {
     Expression(Expression),
     ConstDeclaration{name: String, value: Option<Expression> },
     VarDeclaration{name: String, data_type: Option<DataType>, value: Option<Expression> },
-    If{condition: Box<Expression>, body: Vec<Statement>, else_body: Option<Vec<Statement>>},
+    If{condition: Expression, body: Vec<Statement>, else_body: Option<Vec<Statement>>},
+    While{condition: Expression, body: Vec<Statement>}
 }
 
 pub enum Op {
@@ -154,7 +155,7 @@ pub fn statement_to_source(node: &Statement) -> String {
         Statement::If { condition, body, else_body } => {
             let mut source = format!("if {} {{\n", expression_to_source(condition));
             for line in body {
-                let s = format!("{}\n", statement_to_source(line));
+                let s = format!("    {}\n", statement_to_source(line));
                 source.push_str(&s)
             }
             source.push_str("}");
@@ -163,7 +164,7 @@ pub fn statement_to_source(node: &Statement) -> String {
                 Some(body) => {
                     let mut else_source: String = String::from(" else {\n");
                     for line in body {
-                        let s = format!("{}\n", statement_to_source(line));
+                        let s = format!("    {}\n", statement_to_source(line));
                         else_source.push_str(&s)
                     }
                     else_source.push_str("}");
@@ -171,6 +172,15 @@ pub fn statement_to_source(node: &Statement) -> String {
                 },
                 None => (),
             };
+            return source;
+        },
+        Statement::While { condition, body } => {
+            let mut source = format!("while {} {{\n", expression_to_source(condition));
+            for line in body {
+                let s = format!("    {}\n", statement_to_source(line));
+                source.push_str(&s)
+            }
+            source.push_str("}");
             return source;
         },
     }
@@ -198,21 +208,25 @@ fn format_float(f: &f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+
+    fn get_wabbit_source(program_name: &str) -> String {
+        let filepath = format!("src/wabbit_source/{}", program_name);
+        let source = fs::read_to_string(filepath)
+            .expect("Failed to open program1.wb");    
+        return source;
+    }
 
     #[test]
-    fn program1() {
-        let source = "\
-        print 2;\n\
-        print 2 + 3;\n\
-        print -2 + 3;\n\
-        print 2 + 3 * -4;\n\
-        print (2 + 3) * -4;\n\
-        print 2.0 - 3.0 / -4.0;";
-    
-    
+    fn program1() {   
+        let source: String = get_wabbit_source("program1.wb");
+
         let program = Program{ 
             source: source.to_string(), 
             model: vec![
+                Statement::PrintStatement(
+                    Expression::Char('a')
+                ),
                 Statement::PrintStatement(
                     Expression::Integer(2)
                 ),
@@ -285,13 +299,7 @@ mod tests {
 
     #[test]
     fn program2() {
-        let source = "\
-        const pi = 3.14159;\n\
-        const tau = 2.0 * pi;\n\
-        var radius = 4.0;\n\
-        var perimeter float;\n\
-        perimeter = tau * radius;\n\
-        print perimeter;";
+        let source: String = get_wabbit_source("program2.wb");
 
         let program = Program{ 
             source: source.to_string(), 
@@ -346,11 +354,7 @@ mod tests {
 
     #[test]
     fn program3() {
-        let source = "\
-        print 1 == 1;\n\
-        print 0 < 1;\n\
-        print 0 < 1 < 2;\n\
-        print true || (1 / 0 == 0);";
+        let source: String = get_wabbit_source("program3.wb");
 
         let program = Program{ 
             source: source.to_string(), 
@@ -417,15 +421,7 @@ mod tests {
 
     #[test]
     fn program4() {
-        let source = "\
-        var a int = 2;\n\
-        var b int = 3;\n\
-        var minval int;\n\
-        if a < b {\n\
-            minval = a;\n\
-        } else {\n\
-            minval = b;\n\
-        }";
+        let source: String = get_wabbit_source("program4.wb");
 
         let program = Program{ 
             source: source.to_string(), 
@@ -446,13 +442,12 @@ mod tests {
                     value: None
                 },
                 Statement::If {
-                    condition: Box::new(
-                        Expression::RelOp {
-                            lhs: Box::new(Expression::Identifier("a".to_string())), 
-                            op: RelOp::LT, 
-                            rhs: Box::new(Expression::Identifier("b".to_string())) 
-                        }
-                    ),
+                    condition: Expression::RelOp {
+                        lhs: Box::new(Expression::Identifier("a".to_string())), 
+                        op: RelOp::LT, 
+                        rhs: Box::new(Expression::Identifier("b".to_string())) 
+                    }
+                    ,
                     body: vec![
                         Statement::Expression(
                             Expression::Assignment {
@@ -471,8 +466,10 @@ mod tests {
                             )
                         ]
                     ) 
-                }
-
+                },
+                Statement::PrintStatement(
+                    Expression::Identifier("minval".to_string())
+                )
             ],
             has_errors: false 
         };
@@ -481,4 +478,77 @@ mod tests {
         assert_eq!(program.source, s);
         println!("\n--Program4--\n{}\n", s);
     }
+
+    #[test]
+    fn program5() {
+        let source: String = get_wabbit_source("program5.wb");
+
+        let program = Program{ 
+            source: source.to_string(), 
+            model: vec![
+                Statement::ConstDeclaration {
+                    name: "n".to_string(), 
+                    value: Some(Expression::Integer(10))
+                },
+                Statement::VarDeclaration {
+                    name: "x".to_string(), 
+                    data_type: Some(DataType::Integer), 
+                    value: Some(Expression::Integer(1))
+                },
+                Statement::VarDeclaration {
+                    name: "fact".to_string(), 
+                    data_type: Some(DataType::Integer), 
+                    value: Some(Expression::Integer(1))
+                },
+                Statement::While {
+                    condition: Expression::RelOp {
+                        lhs: Box::new(Expression::Identifier("x".to_string())), 
+                        op: RelOp::LT, 
+                        rhs: Box::new(Expression::Identifier("n".to_string())) 
+                    }, 
+                    body: vec![
+                        Statement::Expression(
+                            Expression::Assignment {
+                                lhs: "fact".to_string(), 
+                                rhs: Box::new(
+                                    Expression::BinOp {
+                                        lhs: Box::new(
+                                            Expression::Identifier("fact".to_string())
+                                        ), 
+                                        op: Op::Mult, 
+                                        rhs: Box::new(
+                                            Expression::Identifier("x".to_string())
+                                        ) 
+                                    }
+                                ) 
+                            }
+                        ),
+                        Statement::Expression(
+                            Expression::Assignment {
+                                lhs: "x".to_string(), 
+                                rhs: Box::new(
+                                    Expression::BinOp {
+                                        lhs: Box::new(
+                                            Expression::Identifier("x".to_string())
+                                        ), 
+                                        op: Op::Add, 
+                                        rhs: Box::new(
+                                            Expression::Integer(1)
+                                        ) 
+                                    }
+                                ) 
+                            }
+                        ),
+                        Statement::PrintStatement(Expression::Identifier("fact".to_string()))                 
+                    ] 
+                }
+            ],
+            has_errors: false 
+        };
+
+        let s = program_to_source(&program);
+        assert_eq!(program.source, s);
+        println!("\n--Program5--\n{}\n", s);
+    }
+
 }
