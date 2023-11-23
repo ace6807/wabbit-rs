@@ -95,6 +95,7 @@ pub fn expression_to_source(node: &Expression) -> String {
         Expression::Integer(i) => i.to_string(),
         Expression::Float(f) => format_float(&f),
         Expression::Boolean(b) => b.to_string(),
+        Expression::Char(c) => format!("'{}'", c),
         Expression::BinOp { lhs, op, rhs } => format!(
             "{} {} {}", 
             expression_to_source(lhs), 
@@ -116,7 +117,6 @@ pub fn expression_to_source(node: &Expression) -> String {
             op.to_string(),
             expression_to_source(rhs)
         ),
-        Expression::Char(_) => todo!(),
         Expression::Block { body } => {
             let mut source: String = String::new();
             for line in body {
