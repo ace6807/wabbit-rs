@@ -24,12 +24,14 @@ impl fmt::Display for DataType {
     }
 }
 
-
 pub enum Expression {
     Identifier(String),
     Integer(i32),
     Float(f64),
+    Boolean(bool),
+    Char(char),
     BinOp{lhs: Box<Expression>, op: Op, rhs: Box<Expression>},
+    RelOp{lhs: Box<Expression>, op: RelOp, rhs:Box<Expression>},
     Grouping(Box<Expression>),
     Assignment{lhs: String, rhs: Box<Expression>}
 }
@@ -48,6 +50,33 @@ pub enum Op {
     Div
 }
 
+pub enum RelOp {
+    GT,
+    GE,
+    LT,
+    LE,
+    EQ,
+    OR,
+}
+
+impl fmt::Display for RelOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                RelOp::GT => ">",
+                RelOp::GE => ">=",
+                RelOp::LT => "<",
+                RelOp::LE => "<=",
+                RelOp::EQ => "==",
+                RelOp::OR => "||",
+            }
+        )
+    }
+}
+
+
 pub fn program_to_source(program: &Program<Statement>) -> String {
     let mut source_code: Vec<String> = Vec::new();
     for node in &program.model {
@@ -63,6 +92,7 @@ pub fn expression_to_source(node: &Expression) -> String {
         Expression::Identifier(name) => name.to_string(),
         Expression::Integer(i) => i.to_string(),
         Expression::Float(f) => format_float(&f),
+        Expression::Boolean(b) => b.to_string(),
         Expression::BinOp { lhs, op, rhs } => format!(
             "{} {} {}", 
             expression_to_source(lhs), 
@@ -78,6 +108,13 @@ pub fn expression_to_source(node: &Expression) -> String {
             lhs,
             expression_to_source(rhs)
         ),
+        Expression::RelOp { lhs, op, rhs } => format!(
+            "{} {} {}",
+            expression_to_source(lhs),
+            op.to_string(),
+            expression_to_source(rhs)
+        ),
+        Expression::Char(_) => todo!(),
     }
 }
 
@@ -211,10 +248,9 @@ mod tests {
     
         let s = program_to_source(&program);
         assert_eq!(program.source, s);    
-        println!("--Program1--\n{}\n", s);
+        println!("\n--Program1--\n{}\n", s);
     
     }
-    
 
     #[test]
     fn program2() {
@@ -274,11 +310,82 @@ mod tests {
     
         let s = program_to_source(&program);
         assert_eq!(program.source, s);    
-        println!("--Program2--\n{}\n", s);
+        println!("\n--Program2--\n{}\n", s);
 
 
     }
 
+    #[test]
+    fn program3() {
+        let source = "\
+        print 1 == 1;\n\
+        print 0 < 1;\n\
+        print 0 < 1 < 2;\n\
+        print true || (1 / 0 == 0);";
 
+        let program = Program{ 
+            source: source.to_string(), 
+            model: vec![
+                Statement::PrintStatement(
+                    Expression::RelOp{
+                        lhs: Box::new(Expression::Integer(1)), 
+                        op: RelOp::EQ, 
+                        rhs: Box::new(Expression::Integer(1)) 
+                    }
+                ),
+                Statement::PrintStatement(
+                    Expression::RelOp{
+                        lhs: Box::new(Expression::Integer(0)), 
+                        op: RelOp::LT, 
+                        rhs: Box::new(Expression::Integer(1)) 
+                    }
+                ),
+                Statement::PrintStatement(
+                    Expression::RelOp{
+                        lhs: Box::new(
+                            Expression::RelOp {
+                                lhs: Box::new(Expression::Integer(0)), 
+                                op: RelOp::LT, 
+                                rhs: Box::new(Expression::Integer(1))
+                            }
+                        ), 
+                        op: RelOp::LT, 
+                        rhs: Box::new(Expression::Integer(2)) 
+                    }
+                ),
+                Statement::PrintStatement(
+                    Expression::RelOp {
+                        lhs: Box::new(Expression::Boolean(true)), 
+                        op: RelOp::OR, 
+                        rhs: Box::new(
+                            Expression::Grouping(
+                                Box::new(
+                                    Expression::RelOp {
+                                        lhs: Box::new(
+                                            Expression::BinOp {
+                                                lhs: Box::new(Expression::Integer(1)), 
+                                                op: Op::Div, 
+                                                rhs: Box::new(Expression::Integer(0)) 
+                                            }
+                                        ), 
+                                        op: RelOp::EQ, 
+                                        rhs: Box::new(Expression::Integer(0))
+                                    }
+                                )
+                            )
+                        ) 
+                    }
+                )
+
+            ],
+            has_errors: false 
+        };
+    
+        let s = program_to_source(&program);
+        assert_eq!(program.source, s);    
+        println!("\n--Program3--\n{}\n", s);
+
+
+    }
 
 }
