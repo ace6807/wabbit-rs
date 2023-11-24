@@ -82,17 +82,17 @@ impl fmt::Display for RelOp {
 }
 
 
-pub fn program_to_source(program: &Program<Statement>) -> String {
+pub fn program_to_source(program: &Program<Statement>, indent: usize) -> String {
     let mut source_code: Vec<String> = Vec::new();
     for node in &program.model {
-        let line = statement_to_source(&node);
+        let line = statement_to_source(&node, indent);
         source_code.push(line);
     }
 
     return source_code.join("\n");
 }
 
-pub fn expression_to_source(node: &Expression) -> String {
+pub fn expression_to_source(node: &Expression, indent: usize) -> String {
     match node {
         Expression::Identifier(name) => name.to_string(),
         Expression::Integer(i) => i.to_string(),
@@ -101,29 +101,29 @@ pub fn expression_to_source(node: &Expression) -> String {
         Expression::Char(c) => format!("'{}'", c),
         Expression::BinOp { lhs, op, rhs } => format!(
             "{} {} {}", 
-            expression_to_source(lhs), 
+            expression_to_source(lhs, indent), 
             op_to_source(op),
-            expression_to_source(rhs)
+            expression_to_source(rhs, indent)
         ),
         Expression::Grouping(expression) => format!(
             "({})",
-            expression_to_source(expression)
+            expression_to_source(expression, indent)
         ),
         Expression::Assignment { lhs, rhs } => format!(
             "{} = {};",
             lhs,
-            expression_to_source(rhs)
+            expression_to_source(rhs, indent)
         ),
         Expression::RelOp { lhs, op, rhs } => format!(
             "{} {} {}",
-            expression_to_source(lhs),
+            expression_to_source(lhs, indent),
             op.to_string(),
-            expression_to_source(rhs)
+            expression_to_source(rhs, indent)
         ),
         Expression::Block { body } => {
             let mut source: String = String::new();
             for line in body {
-                let s = format!("{}\n", statement_to_source(line));
+                let s = format!("{}\n", statement_to_source(line, indent));
                 source.push_str(&s)
             }
             return source;
@@ -131,45 +131,48 @@ pub fn expression_to_source(node: &Expression) -> String {
     }
 }
 
-pub fn statement_to_source(node: &Statement) -> String {
+pub fn statement_to_source(node: &Statement, indent: usize) -> String {
+
+    let padding = "    ".repeat(indent);
+
     match node {
         Statement::PrintStatement(expression) => {
-            return String::from("print ") + &expression_to_source(expression) + &";".to_string();
+            return format!("{}print {};", padding, &expression_to_source(expression, indent));
         },
         Statement::Expression(expression) => {
-            return expression_to_source(expression);
+            return format!("{}{}", padding, expression_to_source(expression, indent));
         },
         Statement::ConstDeclaration { name, value } => {
             match value {
-                Some(value) => return format!("const {} = {};", name, expression_to_source(value)),
-                None => return format!("const {};", name),
+                Some(value) => return format!("{}const {} = {};", padding, name, expression_to_source(value, indent)),
+                None => return format!("{}const {};", padding, name),
             }
         },
         Statement::VarDeclaration { name, data_type, value } => {
             match (data_type, value) {
                 (None, None) => panic!("Invalid. Var declaration must have data_type or value"),
-                (None, Some(value)) => format!("var {} = {};", name, expression_to_source(value)),
-                (Some(data_type), None) => format!("var {} {};", name, data_type),
-                (Some(data_type), Some(value)) => format!("var {} {} = {};", name, data_type, expression_to_source(value)),
+                (None, Some(value)) => format!("{}var {} = {};", padding, name, expression_to_source(value, indent)),
+                (Some(data_type), None) => format!("{}var {} {};", padding, name, data_type),
+                (Some(data_type), Some(value)) => format!("{}var {} {} = {};", padding, name, data_type, expression_to_source(value, indent)),
             }
 
         },
         Statement::If { condition, body, else_body } => {
-            let mut source = format!("if {} {{\n", expression_to_source(condition));
+            let mut source = format!("{}if {} {{\n", padding, expression_to_source(condition, indent));
             for line in body {
-                let s = format!("    {}\n", statement_to_source(line));
+                let s = format!("{}\n", statement_to_source(line, indent + 1));
                 source.push_str(&s)
             }
-            source.push_str("}");
+            source.push_str(&format!("{}}}", padding));
 
             match else_body {
                 Some(body) => {
                     let mut else_source: String = String::from(" else {\n");
                     for line in body {
-                        let s = format!("    {}\n", statement_to_source(line));
+                        let s = format!("{}\n", statement_to_source(line, indent + 1));
                         else_source.push_str(&s)
                     }
-                    else_source.push_str("}");
+                    else_source.push_str(&format!("{}}}", padding));
                     source.push_str(&else_source);
                 },
                 None => (),
@@ -177,16 +180,16 @@ pub fn statement_to_source(node: &Statement) -> String {
             return source;
         },
         Statement::While { condition, body } => {
-            let mut source = format!("while {} {{\n", expression_to_source(condition));
+            let mut source = format!("{}while {} {{\n", padding, expression_to_source(condition, indent));
             for line in body {
-                let s = format!("    {}\n", statement_to_source(line));
+                let s = format!("{}\n", statement_to_source(line, indent + 1));
                 source.push_str(&s)
             }
-            source.push_str("}");
+            source.push_str(&format!("{}}}", padding));
             return source;
         },
-        Statement::Break => "break;".to_string(),
-        Statement::Continue => "continue;".to_string(),
+        Statement::Break => format!("{}break;", padding),
+        Statement::Continue => format!("{}continue;", padding),
     }
 }
 
@@ -296,7 +299,7 @@ mod tests {
             has_errors: false 
         };
     
-        let s = program_to_source(&program);
+        let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);    
         println!("\n--Program1--\n{}\n", s);
     }
@@ -351,7 +354,7 @@ mod tests {
             has_errors: false 
         };
     
-        let s = program_to_source(&program);
+        let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);    
         println!("\n--Program2--\n{}\n", s);
     }
@@ -418,7 +421,7 @@ mod tests {
             has_errors: false 
         };
     
-        let s = program_to_source(&program);
+        let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);    
         println!("\n--Program3--\n{}\n", s);
     }
@@ -478,7 +481,7 @@ mod tests {
             has_errors: false 
         };
 
-        let s = program_to_source(&program);
+        let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);
         println!("\n--Program4--\n{}\n", s);
     }
@@ -550,7 +553,7 @@ mod tests {
             has_errors: false 
         };
 
-        let s = program_to_source(&program);
+        let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);
         println!("\n--Program5--\n{}\n", s);
     }
@@ -610,7 +613,7 @@ mod tests {
             has_errors: false 
         };
 
-        let s = program_to_source(&program);
+        let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);
         println!("\n--Program5--\n{}\n", s);
     }
