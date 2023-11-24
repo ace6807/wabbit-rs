@@ -38,7 +38,7 @@ pub enum Expression {
     FunctionCall{name: String, body: Vec<Expression>}
 }
 
-struct Param{
+pub struct Param{
     name: String,
     data_type: DataType
 }
