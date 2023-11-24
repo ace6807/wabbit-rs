@@ -55,6 +55,21 @@ pub enum Op {
     Div
 }
 
+impl fmt::Display for Op {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Op::Add => "+",
+                Op::Sub => "-",
+                Op::Mult => "*",
+                Op::Div => "/",
+            }
+        )
+    }
+}
+
 pub enum RelOp {
     GT,
     GE,
@@ -102,7 +117,7 @@ pub fn expression_to_source(node: &Expression, indent: usize) -> String {
         Expression::BinOp { lhs, op, rhs } => format!(
             "{} {} {}", 
             expression_to_source(lhs, indent), 
-            op_to_source(op),
+            op,
             expression_to_source(rhs, indent)
         ),
         Expression::Grouping(expression) => format!(
@@ -190,15 +205,6 @@ pub fn statement_to_source(node: &Statement, indent: usize) -> String {
         },
         Statement::Break => format!("{}break;", padding),
         Statement::Continue => format!("{}continue;", padding),
-    }
-}
-
-pub fn op_to_source(op: &Op) -> String{
-    match op {
-        Op::Add => return String::from("+"),
-        Op::Sub => return String::from("-"),
-        Op::Mult => return String::from("*"),
-        Op::Div => return String::from("/"),
     }
 }
 
