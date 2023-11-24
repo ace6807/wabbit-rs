@@ -125,7 +125,7 @@ pub fn expression_to_source(node: &Expression, indent: usize) -> String {
             expression_to_source(expression, indent)
         ),
         Expression::Assignment { lhs, rhs } => format!(
-            "{} = {};",
+            "{} = {}",
             lhs,
             expression_to_source(rhs, indent)
         ),
@@ -136,11 +136,12 @@ pub fn expression_to_source(node: &Expression, indent: usize) -> String {
             expression_to_source(rhs, indent)
         ),
         Expression::Block { body } => {
-            let mut source: String = String::new();
+            let mut source: String = String::from("{ ");
             for line in body {
-                let s = format!("{}\n", statement_to_source(line, indent));
+                let s = format!("{} ", statement_to_source(line, indent));
                 source.push_str(&s)
             }
+            source.push_str("}");
             return source;
         },
     }
@@ -155,7 +156,7 @@ pub fn statement_to_source(node: &Statement, indent: usize) -> String {
             return format!("{}print {};", padding, &expression_to_source(expression, indent));
         },
         Statement::Expression(expression) => {
-            return format!("{}{}", padding, expression_to_source(expression, indent));
+            return format!("{}{};", padding, expression_to_source(expression, indent));
         },
         Statement::ConstDeclaration { name, value } => {
             match value {
@@ -621,7 +622,62 @@ mod tests {
 
         let s = program_to_source(&program, 0);
         assert_eq!(program.source, s);
-        println!("\n--Program5--\n{}\n", s);
+        println!("\n--Program6--\n{}\n", s);
+    }
+
+    #[test]
+    fn program7() {
+        let source: String = get_wabbit_source("program7.wb");
+
+        let program = Program{
+            source: source.to_string(),
+            model: vec![
+                Statement::VarDeclaration{
+                    name: "x".to_string(),
+                    data_type: None,
+                    value: Some(Expression::Integer(37))
+                },
+                Statement::VarDeclaration{
+                    name: "y".to_string(),
+                    data_type: None,
+                    value: Some(Expression::Integer(42))
+                },
+                Statement::Expression(
+                    Expression::Assignment {
+                        lhs: "x".to_string(), 
+                        rhs: Box::new(
+                            Expression::Block {
+                                body: vec![
+                                    Statement::VarDeclaration {
+                                        name: "t".to_string(), 
+                                        data_type: None, 
+                                        value: Some(Expression::Identifier("y".to_string()))
+                                    },
+                                    Statement::Expression(
+                                        Expression::Assignment {
+                                            lhs: "y".to_string(), 
+                                            rhs: Box::new(
+                                                Expression::Identifier("x".to_string())
+                                            ) 
+                                        }
+                                    ),
+                                    Statement::Expression(
+                                        Expression::Identifier("t".to_string())
+                                    )
+                                ] 
+                            }
+                        ) 
+                    }
+                ),
+                Statement::PrintStatement(Expression::Identifier("x".to_string())),
+                Statement::PrintStatement(Expression::Identifier("y".to_string()))
+            ],
+            has_errors: false 
+        };
+
+        let s = program_to_source(&program, 0);
+        assert_eq!(program.source, s);
+        println!("\n--Program7--\n{}\n", s);
     }
 
 

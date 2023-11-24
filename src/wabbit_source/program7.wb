@@ -1,0 +1,5 @@
+var x = 37;
+var y = 42;
+x = { var t = y; y = x; t; };
+print x;
+print y;
