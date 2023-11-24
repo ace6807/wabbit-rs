@@ -43,7 +43,9 @@ pub enum Statement {
     ConstDeclaration{name: String, value: Option<Expression> },
     VarDeclaration{name: String, data_type: Option<DataType>, value: Option<Expression> },
     If{condition: Expression, body: Vec<Statement>, else_body: Option<Vec<Statement>>},
-    While{condition: Expression, body: Vec<Statement>}
+    While{condition: Expression, body: Vec<Statement>},
+    Break,
+    Continue
 }
 
 pub enum Op {
@@ -183,6 +185,8 @@ pub fn statement_to_source(node: &Statement) -> String {
             source.push_str("}");
             return source;
         },
+        Statement::Break => "break;".to_string(),
+        Statement::Continue => "continue;".to_string(),
     }
 }
 
@@ -550,5 +554,66 @@ mod tests {
         assert_eq!(program.source, s);
         println!("\n--Program5--\n{}\n", s);
     }
+
+    #[test]
+    fn program6() {
+        let source: String = get_wabbit_source("program6.wb");
+
+        let program = Program{
+            source: source.to_string(),
+            model: vec![
+                Statement::VarDeclaration{
+                    name: "n".to_string(),
+                    data_type: None,
+                    value: Some(Expression::Integer(0))
+                },
+                Statement::While {
+                    condition: Expression::Boolean(true), 
+                    body: vec![
+                        Statement::If {
+                            condition: Expression::RelOp { 
+                                lhs: Box::new(Expression::Identifier("n".to_string())), 
+                                op: RelOp::EQ, 
+                                rhs: Box::new(Expression::Integer(2)) 
+                            }, 
+                            body: vec![
+                                Statement::PrintStatement(Expression::Identifier("n".to_string())),
+                                Statement::Break
+                            ], 
+                            else_body: Some(vec![
+                                Statement::Expression(
+                                    Expression::Assignment {
+                                        lhs: "n".to_string(),
+                                        rhs: Box::new(Expression::BinOp {
+                                            lhs: Box::new(Expression::Identifier("n".to_string())),
+                                            op: Op::Add,
+                                            rhs: Box::new(Expression::Integer(1))
+                                        })
+                                    }
+                                ),
+                                Statement::Continue
+                            ])
+                        },
+                        Statement::Expression(
+                            Expression::Assignment {
+                                lhs: "n".to_string(),
+                                rhs: Box::new(Expression::BinOp {
+                                    lhs: Box::new(Expression::Identifier("n".to_string())),
+                                    op: Op::Sub,
+                                    rhs: Box::new(Expression::Integer(1))
+                                })
+                            }
+                        ),
+                    ] 
+                }
+            ],
+            has_errors: false 
+        };
+
+        let s = program_to_source(&program);
+        assert_eq!(program.source, s);
+        println!("\n--Program5--\n{}\n", s);
+    }
+
 
 }

@@ -1,0 +1,11 @@
+var n = 0;
+while true {
+    if n == 2 {
+        print n;
+        break;
+    } else {
+        n = n + 1;
+        continue;
+    }
+    n = n - 1;
+}
