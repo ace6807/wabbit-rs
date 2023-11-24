@@ -53,7 +53,8 @@ pub enum Statement {
     While{condition: Expression, body: Vec<Statement>},
     Break,
     Continue,
-    Return(Expression)
+    Return(Expression),
+    BlankLine,
 }
 
 pub enum Op {
@@ -219,6 +220,7 @@ pub fn statement_to_source(node: &Statement, indent: usize) -> String {
         Statement::Break => format!("{}break;", padding),
         Statement::Continue => format!("{}continue;", padding),
         Statement::Return(expression) => format!("{}return {};", padding, expression_to_source(expression, indent)),
+        Statement::BlankLine => String::new(),
         Statement::FuncDeclaration { name, params, return_type, body } => {
             let mut source = String::from(format!("func {}(", name));
             let mut string_vec: Vec<String> = Vec::new();
@@ -735,6 +737,7 @@ mod tests {
                         )
                     ] 
                 },
+                Statement::BlankLine,
                 Statement::VarDeclaration { 
                     name: "result".to_string(), 
                     data_type: None, 
