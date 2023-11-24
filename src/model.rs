@@ -35,6 +35,12 @@ pub enum Expression {
     Grouping(Box<Expression>),
     Assignment{lhs: String, rhs: Box<Expression>},
     Block{body: Vec<Statement>},
+    FunctionCall{name: String, body: Vec<Expression>}
+}
+
+struct Param{
+    name: String,
+    data_type: DataType
 }
 
 pub enum Statement {
@@ -42,10 +48,12 @@ pub enum Statement {
     Expression(Expression),
     ConstDeclaration{name: String, value: Option<Expression> },
     VarDeclaration{name: String, data_type: Option<DataType>, value: Option<Expression> },
+    FuncDeclaration{name: String, params: Vec<Param>, return_type: Option<DataType>, body: Vec<Statement>},
     If{condition: Expression, body: Vec<Statement>, else_body: Option<Vec<Statement>>},
     While{condition: Expression, body: Vec<Statement>},
     Break,
-    Continue
+    Continue,
+    Return(Expression)
 }
 
 pub enum Op {
@@ -144,6 +152,10 @@ pub fn expression_to_source(node: &Expression, indent: usize) -> String {
             source.push_str("}");
             return source;
         },
+        Expression::FunctionCall { name, body } => {
+            let mut arg_list: Vec<String> = body.iter().map(|e| expression_to_source(e, indent)).collect();
+            format!("{}({})", name, arg_list.join(", "))
+        },
     }
 }
 
@@ -206,6 +218,25 @@ pub fn statement_to_source(node: &Statement, indent: usize) -> String {
         },
         Statement::Break => format!("{}break;", padding),
         Statement::Continue => format!("{}continue;", padding),
+        Statement::Return(expression) => format!("{}return {};", padding, expression_to_source(expression, indent)),
+        Statement::FuncDeclaration { name, params, return_type, body } => {
+            let mut source = String::from(format!("func {}(", name));
+            let mut string_vec: Vec<String> = Vec::new();
+            for param in params {
+                string_vec.push(format!("{} {}", param.name, param.data_type));
+            }
+            source.push_str(&string_vec.join(", "));
+            source.push_str(&format!(") {} {{\n", return_type.as_ref().unwrap()));
+
+            for line in body {
+                let s = format!("{}\n", statement_to_source(line, indent + 1));
+                source.push_str(&s)
+            }
+            source.push_str(&format!("{}}}", padding));
+
+            source
+        },
+
     }
 }
 
@@ -680,5 +711,52 @@ mod tests {
         println!("\n--Program7--\n{}\n", s);
     }
 
+    #[test]
+    fn program8() {
+        let source: String = get_wabbit_source("program8.wb");
 
+        let program = Program{
+            source: source.to_string(),
+            model: vec![
+                Statement::FuncDeclaration {
+                    name: "add".to_string(), 
+                    params: vec![
+                        Param{ name: "x".to_string(), data_type: DataType::Integer },
+                        Param{ name: "y".to_string(), data_type: DataType::Integer }
+                    ], 
+                    return_type: Some(DataType::Integer), 
+                    body: vec![
+                        Statement::Return(
+                            Expression::BinOp {
+                                lhs: Box::new(Expression::Identifier("x".to_string())),
+                                op: Op::Add,
+                                rhs: Box::new(Expression::Identifier("y".to_string())), 
+                            }
+                        )
+                    ] 
+                },
+                Statement::VarDeclaration { 
+                    name: "result".to_string(), 
+                    data_type: None, 
+                    value: Some(
+                        Expression::FunctionCall {
+                            name: "add".to_string(), 
+                            body: vec![
+                                Expression::Integer(2),
+                                Expression::Integer(3)
+                            ] 
+                        }
+                    ) 
+                },
+                Statement::PrintStatement(
+                    Expression::Identifier("result".to_string())
+                )
+            ],
+            has_errors: false 
+        };
+
+        let s = program_to_source(&program, 0);
+        assert_eq!(program.source, s);
+        println!("\n--Program8--\n{}\n", s);
+    }
 }
